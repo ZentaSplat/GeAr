@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>GeAr – Art Program</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      display: flex;
+      height: 100vh;
+      background: #1e1e1e;
+      color: #f5f5f5;
+      overflow: hidden;
+    }
+
+    #sidebar-left {
+      width: 220px;
+      background: #252526;
+      border-right: 1px solid #333;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #topbar {
+      height: 80px;
+      background: #2d2d30;
+      border-bottom: 1px solid #333;
+      padding: 8px 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    #canvas-container {
+      flex: 1;
+      background: #1e1e1e;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      overflow: auto;
+    }
+
+    #canvas-wrapper {
+      position: relative;
+      background: #2b2b2b;
+      padding: 10px;
+      border-radius: 4px;
+      box-shadow: 0 0 0 1px #000;
+    }
+
+    canvas {
+      background: #ffffff;
+      cursor: crosshair;
+      image-rendering: crisp-edges;
+      image-rendering: pixelated;
+    }
+
+    #sidebar-right {
+      width: 220px;
+      background: #252526;
+      border-left: 1px solid #333;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      color: #c5c5c5;
+    }
+
+    .tool-group,
+    .layer-panel,
+    .save-panel {
+      background: #2d2d30;
+      border-radius: 4px;
+      padding: 8px;
+      border: 1px solid #3c3c3c;
+    }
+
+    button,
+    select,
+    input[type="number"],
+    input[type="file"] {
+      font-size: 12px;
+      padding: 4px 6px;
+      border-radius: 3px;
+      border: 1px solid #555;
+      background: #3c3c3c;
+      color: #f5f5f5;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    button.active {
+      background: #007acc;
+      border-color: #007acc;
+    }
+
+    button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    input[type="color"] {
+      padding: 0;
+      border: none;
+      background: transparent;
+      width: 32px;
+      height: 24px;
+      cursor: pointer;
+    }
+
+    .tool-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-bottom: 6px;
+    }
+
+    .label-inline {
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    .layers-list {
+      max-height: 300px;
+      overflow-y: auto;
+      margin-top: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 4px;
+      padding: 4px;
+      border-radius: 3px;
+      background: #333;
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .layer-item.active {
+      background: #007acc;
+    }
+
+    .layer-controls {
+      display: flex;
+      gap: 2px;
+      align-items: center;
+    }
+
+    .layer-controls button {
+      padding: 2px 4px;
+      font-size: 10px;
+    }
+
+    .layer-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .small-input {
+      width: 60px;
+    }
+
+    .spacer {
+      flex: 1;
+    }
+
+    .file-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      align-items: center;
+    }
+
+    .save-row {
+      display: flex;
+      gap: 4px;
+      margin-top: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .format-select {
+      width: 90px;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- LEFT SIDEBAR: Tools -->
+  <div id="sidebar-left">
+    <div class="tool-group">
+      <div class="panel-title">Tools</div>
+      <div class="tool-row">
+        <button id="tool-pen" class="active" data-tool="pen">Pen</button>
+        <button id="tool-eraser" data-tool="eraser">Eraser</button>
+        <button id="tool-fill" data-tool="fill">Paint Bucket</button>
+        <button id="tool-image" data-tool="image">Add Image</button>
+      </div>
+
+      <div class="tool-row">
+        <span class="label-inline">Pen size</span>
+        <input id="pen-size" type="number" min="1" max="100" value="4" class="small-input" />
+      </div>
+
+      <div class="tool-row">
+        <span class="label-inline">Color</span>
+        <input id="color-picker" type="color" value="#000000" />
+      </div>
+    </div>
+
+    <div class="tool-group">
+      <div class="panel-title">Canvas</div>
+      <div class="tool-row">
+        <span class="label-inline">W</span>
+        <input id="canvas-width" type="number" min="64" max="4096" value="800" class="small-input" />
+        <span class="label-inline">H</span>
+        <input id="canvas-height" type="number" min="64" max="4096" value="600" class="small-input" />
+        <button id="apply-size">Apply</button>
+      </div>
+      <div class="tool-row">
+        <span class="label-inline">Start from image</span>
+        <input id="upload-start" type="file" accept="image/*" />
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN AREA -->
+  <div id="main">
+    <div id="topbar">
+      <strong>GeAr</strong>
+      <span style="font-size:11px; opacity:0.8;">– Canvas drawing with layers</span>
+      <div class="spacer"></div>
+      <div style="display:flex; gap:6px; align-items:center; font-size:11px;">
+        <span>Current tool:</span>
+        <span id="current-tool-label">Pen</span>
+        <span>| Layer:</span>
+        <span id="current-layer-label">Layer 1</span>
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <div id="canvas-wrapper">
+        <!-- One visible composite canvas -->
+        <canvas id="display-canvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR: Layers + Save -->
+  <div id="sidebar-right">
+    <div class="layer-panel">
+      <div class="panel-title">Layers</div>
+      <div class="tool-row">
+        <button id="add-layer">Add Layer</button>
+        <button id="remove-layer">Remove</button>
+      </div>
+      <div class="tool-row">
+        <span style="font-size:11px;">Up to 10 layers</span>
+      </div>
+      <div class="layers-list" id="layers-list"></div>
+    </div>
+
+    <div class="save-panel">
+      <div class="panel-title">Save / Load</div>
+      <div class="save-row">
+        <span class="label-inline">Format</span>
+        <select id="save-format" class="format-select">
+          <option value="png">PNG</option>
+          <option value="jpeg">JPEG</option>
+          <option value="xml">XML</option>
+          <option value="gr">GR</option>
+        </select>
+        <button id="save-image">Save</button>
+      </div>
+      <div style="margin-top:8px; font-size:11px; opacity:0.8;">
+        GR files store all layers and settings so you can restore your session later.
+      </div>
+      <div style="margin-top:8px;" class="file-row">
+        <span class="label-inline">Load GR</span>
+        <input id="load-gr" type="file" accept=".gr,.json" />
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Core state =====
+    const displayCanvas = document.getElementById('display-canvas');
+    const displayCtx = displayCanvas.getContext('2d');
+
+    let deviceScale = window.devicePixelRatio || 1;
+
+    const MAX_LAYERS = 10;
+    let layers = []; // { id, name, canvas, ctx, visible }
+    let activeLayerIndex = 0;
+
+    let currentTool = 'pen';
+    let drawing = false;
+    let lastX = 0;
+    let lastY = 0;
+
+    let penColor = '#000000';
+    let penSize = 4;
+
+    // ===== UI elements =====
+    const toolButtons = {
+      pen: document.getElementById('tool-pen'),
+      eraser: document.getElementById('tool-eraser'),
+      fill: document.getElementById('tool-fill'),
+      image: document.getElementById('tool-image')
+    };
+
+    const penSizeInput = document.getElementById('pen-size');
+    const colorPicker = document.getElementById('color-picker');
+
+    const canvasWidthInput = document.getElementById('canvas-width');
+    const canvasHeightInput = document.getElementById('canvas-height');
+    const applySizeBtn = document.getElementById('apply-size');
+    const uploadStartInput = document.getElementById('upload-start');
+
+    const layersListEl = document.getElementById('layers-list');
+    const addLayerBtn = document.getElementById('add-layer');
+    const removeLayerBtn = document.getElementById('remove-layer');
+
+    const currentToolLabel = document.getElementById('current-tool-label');
+    const currentLayerLabel = document.getElementById('current-layer-label');
+
+    const saveFormatSelect = document.getElementById('save-format');
+    const saveImageBtn = document.getElementById('save-image');
+    const loadGrInput = document.getElementById('load-gr');
+
+    // ===== Helpers =====
+    function setupCanvasResolution(canvas, width, height) {
+      const scale = deviceScale;
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      return ctx;
+    }
+
+    function resizeAllCanvases(width, height) {
+      // Resize display canvas
+      setupCanvasResolution(displayCanvas, width, height);
+
+      // Resize each layer canvas and keep content (simple nearest copy)
+      layers.forEach(layer => {
+        const oldCanvas = layer.canvas;
+        const temp = document.createElement('canvas');
+        temp.width = oldCanvas.width;
+        temp.height = oldCanvas.height;
+        const tctx = temp.getContext('2d');
+        tctx.drawImage(oldCanvas, 0, 0);
+
+        layer.canvas.width = width * deviceScale;
+        layer.canvas.height = height * deviceScale;
+        layer.canvas.style.width = width + 'px';
+        layer.canvas.style.height = height + 'px';
+        layer.ctx.setTransform(deviceScale, 0, 0, deviceScale, 0, 0);
+        layer.ctx.imageSmoothingEnabled = true;
+        layer.ctx.imageSmoothingQuality = 'high';
+        layer.ctx.lineCap = 'round';
+        layer.ctx.lineJoin = 'round';
+
+        layer.ctx.drawImage(temp, 0, 0, width * deviceScale, height * deviceScale);
+      });
+
+      compositeLayers();
+    }
+
+    function createLayer(name) {
+      const canvas = document.createElement('canvas');
+      const width = parseInt(canvasWidthInput.value, 10) || 800;
+      const height = parseInt(canvasHeightInput.value, 10) || 600;
+      const ctx = setupCanvasResolution(canvas, width, height);
+      ctx.clearRect(0, 0, width, height);
+
+      return {
+        id: Date.now() + Math.random(),
+        name,
+        canvas,
+        ctx,
+        visible: true
+      };
+    }
+
+    function addLayer() {
+      if (layers.length >= MAX_LAYERS) return;
+      const layerName = `Layer ${layers.length + 1}`;
+      const layer = createLayer(layerName);
+      layers.unshift(layer); // topmost at index 0
+      activeLayerIndex = 0;
+      refreshLayersUI();
+      compositeLayers();
+    }
+
+    function removeActiveLayer() {
+      if (layers.length <= 1) return;
+      layers.splice(activeLayerIndex, 1);
+      activeLayerIndex = 0;
+      refreshLayersUI();
+      compositeLayers();
+    }
+
+    function refreshLayersUI() {
+      layersListEl.innerHTML = '';
+      layers.forEach((layer, index) => {
+        const item = document.createElement('div');
+        item.className = 'layer-item' + (index === activeLayerIndex ? ' active' : '');
+        item.dataset.index = index;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'layer-name';
+        nameSpan.textContent = layer.name;
+
+        const controls = document.createElement('div');
+        controls.className = 'layer-controls';
+
+        const visBtn = document.createElement('button');
+        visBtn.textContent = layer.visible ? '👁' : '🚫';
+        visBtn.title = 'Toggle visibility';
+        visBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          layer.visible = !layer.visible;
+          visBtn.textContent = layer.visible ? '👁' : '🚫';
+          compositeLayers();
+        });
+
+        controls.appendChild(visBtn);
+        item.appendChild(nameSpan);
+        item.appendChild(controls);
+
+        item.addEventListener('click', () => {
+          activeLayerIndex = index;
+          refreshLayersUI();
+          updateStatusLabels();
+        });
+
+        layersListEl.appendChild(item);
+      });
+
+      updateStatusLabels();
+    }
+
+    function updateStatusLabels() {
+      currentToolLabel.textContent =
+        currentTool === 'pen' ? 'Pen' :
+        currentTool === 'eraser' ? 'Eraser' :
+        currentTool === 'fill' ? 'Paint Bucket' :
+        'Add Image';
+
+      const activeLayer = layers[activeLayerIndex];
+      currentLayerLabel.textContent = activeLayer ? activeLayer.name : 'None';
+    }
+
+    function compositeLayers() {
+      const width = displayCanvas.width / deviceScale;
+      const height = displayCanvas.height / deviceScale;
+      displayCtx.clearRect(0, 0, width, height);
+      // Draw from bottom to top: last in array is bottom
+      for (let i = layers.length - 1; i >= 0; i--) {
+        const layer = layers[i];
+        if (!layer.visible) continue;
+        displayCtx.drawImage(layer.canvas, 0, 0, width * deviceScale, height * deviceScale, 0, 0, width, height);
+      }
+    }
+
+    function getActiveLayerCtx() {
+      return layers[activeLayerIndex]?.ctx || null;
+    }
+
+    function getCanvasCoordinates(evt) {
+      const rect = displayCanvas.getBoundingClientRect();
+      const x = (evt.clientX - rect.left);
+      const y = (evt.clientY - rect.top);
+      return { x, y };
+    }
+
+    // ===== Drawing tools =====
+    function startDrawing(evt) {
+      const ctx = getActiveLayerCtx();
+      if (!ctx) return;
+
+      const { x, y } = getCanvasCoordinates(evt);
+      drawing = true;
+      lastX = x;
+      lastY = y;
+
+      if (currentTool === 'fill') {
+        floodFillAtPoint(x, y);
+        drawing = false;
+        compositeLayers();
+      } else if (currentTool === 'image') {
+        // handled via file input later
+        drawing = false;
+      }
+    }
+
+    function draw(evt) {
+      if (!drawing) return;
+      const ctx = getActiveLayerCtx();
+      if (!ctx) return;
+
+      const { x, y } = getCanvasCoordinates(evt);
+
+      if (currentTool === 'pen' || currentTool === 'eraser') {
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(x, y);
+        ctx.lineWidth = penSize;
+        ctx.strokeStyle = currentTool === 'eraser' ? '#ffffff' : penColor;
+        ctx.globalCompositeOperation = currentTool === 'eraser' ? 'destination-out' : 'source-over';
+        ctx.stroke();
+        ctx.closePath();
+        lastX = x;
+        lastY = y;
+        compositeLayers();
+      }
+    }
+
+    function stopDrawing() {
+      drawing = false;
+      const ctx = getActiveLayerCtx();
+      if (ctx) {
+        ctx.globalCompositeOperation = 'source-over';
+      }
+    }
+
+    // Simple flood fill on active layer
+    function floodFillAtPoint(x, y) {
+      const layer = layers[activeLayerIndex];
+      if (!layer) return;
+
+      const width = displayCanvas.width / deviceScale;
+      const height = displayCanvas.height / deviceScale;
+
+      const ctx = layer.ctx;
+      const imgData = ctx.getImageData(0, 0, width, height);
+      const data = imgData.data;
+
+      const targetX = Math.floor(x);
+      const targetY = Math.floor(y);
+      const index = (targetY * width + targetX) * 4;
+
+      const targetColor = [
+        data[index],
+        data[index + 1],
+        data[index + 2],
+        data[index + 3]
+      ];
+
+      const fillColor = hexToRgba(penColor, 255);
+
+      if (colorsMatch(targetColor, fillColor)) return;
+
+      const stack = [[targetX, targetY]];
+
+      function inBounds(px, py) {
+        return px >= 0 && px < width && py >= 0 && py < height;
+      }
+
+      while (stack.length) {
+        const [cx, cy] = stack.pop();
+        const idx = (cy * width + cx) * 4;
+        const currentColor = [
+          data[idx],
+          data[idx + 1],
+          data[idx + 2],
+          data[idx + 3]
+        ];
+
+        if (!colorsMatch(currentColor, targetColor)) continue;
+
+        data[idx] = fillColor[0];
+        data[idx + 1] = fillColor[1];
+        data[idx + 2] = fillColor[2];
+        data[idx + 3] = fillColor[3];
+
+        if (inBounds(cx + 1, cy)) stack.push([cx + 1, cy]);
+        if (inBounds(cx - 1, cy)) stack.push([cx - 1, cy]);
+        if (inBounds(cx, cy + 1)) stack.push([cx, cy + 1]);
+        if (inBounds(cx, cy - 1)) stack.push([cx, cy - 1]);
+      }
+
+      ctx.putImageData(imgData, 0, 0);
+    }
+
+    function hexToRgba(hex, alpha) {
+      const h = hex.replace('#', '');
+      const bigint = parseInt(h, 16);
+      const r = (bigint >> 16) & 255;
+      const g = (bigint >> 8) & 255;
+      const b = bigint & 255;
+      return [r, g, b, alpha];
+    }
+
+    function colorsMatch(a, b) {
+      return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
+    }
+
+    // ===== Tool switching =====
+    function setTool(tool) {
+      currentTool = tool;
+      Object.keys(toolButtons).forEach(key => {
+        toolButtons[key].classList.toggle('active', key === tool);
+      });
+      updateStatusLabels();
+
+      if (tool === 'image') {
+        // Trigger file picker for adding image to current layer
+        const tempInput = document.createElement('input');
+        tempInput.type = 'file';
+        tempInput.accept = 'image/*';
+        tempInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+              const ctx = getActiveLayerCtx();
+              if (!ctx) return;
+              const width = displayCanvas.width / deviceScale;
+              const height = displayCanvas.height / deviceScale;
+              ctx.drawImage(img, 0, 0, width, height);
+              compositeLayers();
+            };
+            img.src = ev.target.result;
+          };
+          reader.readAsDataURL(file);
+        });
+        tempInput.click();
+      }
+    }
+
+    // ===== Save / Load =====
+    function downloadBlob(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function saveCurrent(format) {
+      const width = displayCanvas.width / deviceScale;
+      const height = displayCanvas.height / deviceScale;
+
+      if (format === 'png' || format === 'jpeg') {
+        const mime = format === 'png' ? 'image/png' : 'image/jpeg';
+        const dataURL = displayCanvas.toDataURL(mime);
+        fetch(dataURL)
+          .then(res => res.blob())
+          .then(blob => downloadBlob(blob, `gear-image.${format}`));
+      } else if (format === 'xml') {
+        const xml = exportToXML(width, height);
+        const blob = new Blob([xml], { type: 'application/xml' });
+        downloadBlob(blob, 'gear-project.xml');
+      } else if (format === 'gr') {
+        const json = exportToGR(width, height);
+        const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+        downloadBlob(blob, 'gear-project.gr');
+      }
+    }
+
+    function exportToXML(width, height) {
+      // Simple XML describing layers and settings
+      let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<GeArProject width="${width}" height="${height}">\n`;
+      xml += `  <Settings penColor="${penColor}" penSize="${penSize}" />\n`;
+      xml += `  <Layers>\n`;
+      layers.forEach((layer, index) => {
+        const dataURL = layer.canvas.toDataURL('image/png');
+        xml += `    <Layer index="${index}" name="${layer.name}" visible="${layer.visible}">\n`;
+        xml += `      <ImageData>${dataURL}</ImageData>\n`;
+        xml += `    </Layer>\n`;
+      });
+      xml += `  </Layers>\n</GeArProject>\n`;
+      return xml;
+    }
+
+    function exportToGR(width, height) {
+      // GR: custom JSON preset with all layers and settings
+      const layerData = layers.map((layer, index) => ({
+        index,
+        name: layer.name,
+        visible: layer.visible,
+        image: layer.canvas.toDataURL('image/png')
+      }));
+
+      return {
+        type: 'GeArProject',
+        version: 1,
+        width,
+        height,
+        settings: {
+          penColor,
+          penSize
+        },
+        layers: layerData
+      };
+    }
+
+    function loadGRFile(file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const json = JSON.parse(e.target.result);
+          if (json.type !== 'GeArProject') {
+            alert('Not a valid GR file.');
+            return;
+          }
+          restoreFromGR(json);
+        } catch (err) {
+          alert('Failed to load GR file.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    function restoreFromGR(project) {
+      const width = project.width || 800;
+      const height = project.height || 600;
+
+      canvasWidthInput.value = width;
+      canvasHeightInput.value = height;
+
+      layers = [];
+      project.layers.forEach((layerInfo, i) => {
+        if (i >= MAX_LAYERS) return;
+        const layer = createLayer(layerInfo.name || `Layer ${i + 1}`);
+        layer.visible = layerInfo.visible !== false;
+        const img = new Image();
+        img.onload = () => {
+          const ctx = layer.ctx;
+          ctx.clearRect(0, 0, width, height);
+          ctx.drawImage(img, 0, 0, width, height);
+          compositeLayers();
+        };
+        img.src = layerInfo.image;
+        layers.push(layer);
+      });
+
+      if (layers.length === 0) {
+        addLayer();
+      }
+
+      activeLayerIndex = 0;
+      penColor = project.settings?.penColor || '#000000';
+      penSize = project.settings?.penSize || 4;
+      colorPicker.value = penColor;
+      penSizeInput.value = penSize;
+
+      resizeAllCanvases(width, height);
+      refreshLayersUI();
+      compositeLayers();
+    }
+
+    // ===== Event wiring =====
+    Object.keys(toolButtons).forEach(tool => {
+      toolButtons[tool].addEventListener('click', () => setTool(tool));
+    });
+
+    penSizeInput.addEventListener('change', () => {
+      const val = parseInt(penSizeInput.value, 10);
+      if (!isNaN(val) && val > 0) {
+        penSize = val;
+      }
+    });
+
+    colorPicker.addEventListener('input', () => {
+      penColor = colorPicker.value;
+    });
+
+    applySizeBtn.addEventListener('click', () => {
+      const width = parseInt(canvasWidthInput.value, 10) || 800;
+      const height = parseInt(canvasHeightInput.value, 10) || 600;
+      resizeAllCanvases(width, height);
+    });
+
+    uploadStartInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = () => {
+          const width = img.width;
+          const height = img.height;
+          canvasWidthInput.value = width;
+          canvasHeightInput.value = height;
+          resizeAllCanvases(width, height);
+
+          // Draw on bottom-most layer
+          const bottomLayer = layers[layers.length - 1];
+          if (bottomLayer) {
+            bottomLayer.ctx.clearRect(0, 0, width, height);
+            bottomLayer.ctx.drawImage(img, 0, 0, width, height);
+            compositeLayers();
+          }
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    addLayerBtn.addEventListener('click', addLayer);
+    removeLayerBtn.addEventListener('click', removeActiveLayer);
+
+    displayCanvas.addEventListener('pointerdown', startDrawing);
+    displayCanvas.addEventListener('pointermove', draw);
+    window.addEventListener('pointerup', stopDrawing);
+    displayCanvas.addEventListener('pointerleave', stopDrawing);
+
+    saveImageBtn.addEventListener('click', () => {
+      const format = saveFormatSelect.value;
+      saveCurrent(format);
+    });
+
+    loadGrInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      loadGRFile(file);
+    });
+
+    // ===== Initialization =====
+    function init() {
+      const width = parseInt(canvasWidthInput.value, 10) || 800;
+      const height = parseInt(canvasHeightInput.value, 10) || 600;
+      setupCanvasResolution(displayCanvas, width, height);
+      layers = [];
+      addLayer(); // at least one layer
+      compositeLayers();
+    }
+
+    init();
+  </script>
+</body>
+</html>
